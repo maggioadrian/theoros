@@ -3,56 +3,36 @@ import Panel from "@/components/Panel";
 import PortfolioOverview from "@/components/PortfolioOverview";
 import PositionsTable from "@/components/PositionsTable";
 import EquityCurve from "@/components/EquityCurve";
-import TradeHistory from "@/components/TradeHistory";
-import MarketFeed from "@/components/MarketFeed";
-import AICommandInput from "@/components/AICommandInput";
+import BottomDrawer from "@/components/BottomDrawer";
 
 export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0f] overflow-hidden">
-      {/* Top command bar (fixed height) */}
+      {/* Command bar */}
       <TopCommandBar />
 
-      {/* Main dashboard grid */}
-      <div className="flex-1 overflow-hidden p-2 grid gap-2" style={{
-        display: "grid",
-        gridTemplateRows: "1fr 1fr",
-        gridTemplateColumns: "280px 1fr 320px",
-        gridTemplateAreas: `
-          "portfolio positions equity"
-          "trades    feed      ai"
-        `,
-      }}>
-        {/* Portfolio Overview */}
-        <Panel style={{ gridArea: "portfolio" }} className="min-h-0">
-          <PortfolioOverview />
-        </Panel>
+      {/* Main content area */}
+      <div className="flex-1 overflow-hidden flex flex-col p-2 gap-2">
 
-        {/* Positions Table */}
-        <Panel style={{ gridArea: "positions" }} className="min-h-0">
+        {/* Upper row: Portfolio Overview + Equity Curve */}
+        <div className="flex gap-2 overflow-hidden" style={{ flex: "0 0 auto", height: "calc(50% - 60px)" }}>
+          <Panel className="w-72 shrink-0">
+            <PortfolioOverview />
+          </Panel>
+          <Panel className="flex-1" glow>
+            <EquityCurve />
+          </Panel>
+        </div>
+
+        {/* Middle row: Positions Table */}
+        <Panel className="flex-1 overflow-hidden min-h-0">
           <PositionsTable />
         </Panel>
 
-        {/* Equity Curve */}
-        <Panel style={{ gridArea: "equity" }} glow className="min-h-0">
-          <EquityCurve />
-        </Panel>
-
-        {/* Trade History */}
-        <Panel style={{ gridArea: "trades" }} className="min-h-0">
-          <TradeHistory />
-        </Panel>
-
-        {/* Market Feed */}
-        <Panel style={{ gridArea: "feed" }} className="min-h-0">
-          <MarketFeed />
-        </Panel>
-
-        {/* AI Command */}
-        <Panel style={{ gridArea: "ai" }} glow className="min-h-0">
-          <AICommandInput />
-        </Panel>
       </div>
+
+      {/* Bottom tabbed drawer */}
+      <BottomDrawer />
     </div>
   );
 }
