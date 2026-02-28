@@ -1,20 +1,22 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Radio, Cpu, Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, Radio, Cpu, Clock, LayoutList } from "lucide-react";
 import MarketFeed from "./MarketFeed";
 import AICommandInput from "./AICommandInput";
 import TradeHistory from "./TradeHistory";
+import PositionsTable from "./PositionsTable";
 
 const TABS = [
-  { id: "feed",    label: "Market Feed",   icon: Radio,  live: true  },
-  { id: "ai",      label: "AI Command",    icon: Cpu,    live: true  },
-  { id: "history", label: "Trade History", icon: Clock,  live: false },
+  { id: "positions", label: "Open Positions", icon: LayoutList, live: false },
+  { id: "feed",      label: "Market Feed",    icon: Radio,      live: true  },
+  { id: "ai",        label: "AI Command",     icon: Cpu,        live: true  },
+  { id: "history",   label: "Trade History",  icon: Clock,      live: false },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
 
 export default function BottomDrawer() {
-  const [active, setActive] = useState<TabId>("feed");
+  const [active, setActive] = useState<TabId>("positions");
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -27,28 +29,20 @@ export default function BottomDrawer() {
         <div className="flex items-center flex-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
-            const isActive = active === tab.id;
+            const isActive = active === tab.id && !collapsed;
             return (
               <button
                 key={tab.id}
-                onClick={() => {
-                  if (collapsed) setCollapsed(false);
-                  setActive(tab.id);
-                }}
+                onClick={() => { if (collapsed) setCollapsed(false); setActive(tab.id); }}
                 className={`flex items-center gap-1.5 px-4 h-full text-[10px] font-bold tracking-widest border-r border-panel transition-colors relative ${
-                  isActive && !collapsed
-                    ? "text-electric bg-electric/5"
-                    : "text-dim hover:text-foreground hover:bg-white/[0.03]"
+                  isActive ? "text-electric bg-electric/5" : "text-dim hover:text-foreground hover:bg-white/[0.03]"
                 }`}
               >
-                {/* Active indicator */}
-                {isActive && !collapsed && (
-                  <span className="absolute top-0 left-0 right-0 h-px bg-electric" />
-                )}
-                <Icon size={9} className={isActive && !collapsed ? "text-electric" : ""} />
+                {isActive && <span className="absolute top-0 left-0 right-0 h-px bg-electric" />}
+                <Icon size={9} className={isActive ? "text-electric" : ""} />
                 {tab.label.toUpperCase()}
                 {tab.live && (
-                  <span className={`w-1 h-1 rounded-full ${isActive && !collapsed ? "bg-profit blink" : "bg-dim"}`} />
+                  <span className={`w-1 h-1 rounded-full ${isActive ? "bg-profit blink" : "bg-dim"}`} />
                 )}
               </button>
             );
@@ -68,9 +62,10 @@ export default function BottomDrawer() {
       {/* Content */}
       {!collapsed && (
         <div className="flex-1 overflow-hidden">
-          {active === "feed"    && <MarketFeed />}
-          {active === "ai"      && <AICommandInput />}
-          {active === "history" && <TradeHistory />}
+          {active === "positions" && <PositionsTable />}
+          {active === "feed"      && <MarketFeed />}
+          {active === "ai"        && <AICommandInput />}
+          {active === "history"   && <TradeHistory />}
         </div>
       )}
     </div>
