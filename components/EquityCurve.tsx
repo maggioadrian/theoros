@@ -74,13 +74,13 @@ export default function EquityCurve() {
       {/* Mini stats */}
       <div className="grid grid-cols-3 gap-px border-b border-panel">
         {[
-          { k: "START", v: `$${(START / 1000).toFixed(1)}k` },
-          { k: "CURRENT", v: `$${(END / 1000).toFixed(1)}k` },
-          { k: "RETURN", v: `+${TOTAL_RETURN}%` },
+          { k: "START",   v: `$${(START / 1000).toFixed(1)}k` },
+          { k: "CURRENT", v: `$${(END / 1000).toFixed(1)}k`   },
+          { k: "RETURN",  v: `+${TOTAL_RETURN}%`              },
         ].map((s) => (
-          <div key={s.k} className="py-1.5 px-3 text-center">
-            <div className="text-[8px] text-dim tracking-widest">{s.k}</div>
-            <div className={`text-[11px] font-bold num ${s.k === "RETURN" ? "text-profit" : "text-electric"}`}>
+          <div key={s.k} className="py-2.5 px-4 text-center">
+            <div className="text-[8px] text-dim tracking-widest mb-1">{s.k}</div>
+            <div className={`text-base font-bold num ${s.k === "RETURN" ? "text-profit" : "text-electric"}`}>
               {s.v}
             </div>
           </div>

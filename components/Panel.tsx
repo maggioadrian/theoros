@@ -13,7 +13,7 @@ export default function Panel({ children, className, glow, style }: PanelProps) 
       style={style}
       className={cn(
         "bg-panel border border-panel rounded-sm overflow-hidden flex flex-col relative",
-        glow && "glow-electric",
+        glow && "border-electric/25 glow-electric",
         className
       )}
     >

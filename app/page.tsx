@@ -14,9 +14,9 @@ export default function Home() {
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex flex-col p-2 gap-2">
 
-        {/* Upper row: Portfolio Overview + Equity Curve */}
-        <div className="flex gap-2 overflow-hidden" style={{ flex: "0 0 auto", height: "calc(50% - 60px)" }}>
-          <Panel className="w-72 shrink-0">
+        {/* Upper row: Portfolio Overview + Equity Curve — primary focus */}
+        <div className="flex gap-2 overflow-hidden" style={{ flex: "0 0 62%" }}>
+          <Panel className="w-80 shrink-0" glow>
             <PortfolioOverview />
           </Panel>
           <Panel className="flex-1" glow>
@@ -24,7 +24,7 @@ export default function Home() {
           </Panel>
         </div>
 
-        {/* Middle row: Positions Table */}
+        {/* Lower row: Positions Table — compact secondary */}
         <Panel className="flex-1 overflow-hidden min-h-0">
           <PositionsTable />
         </Panel>
