@@ -1,16 +1,18 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Radio, Cpu, Clock, LayoutList } from "lucide-react";
+import { ChevronDown, ChevronUp, Radio, Cpu, Clock, LayoutList, BarChart2 } from "lucide-react";
 import MarketFeed from "./MarketFeed";
 import AICommandInput from "./AICommandInput";
 import TradeHistory from "./TradeHistory";
 import PositionsTable from "./PositionsTable";
+import SentimentIndicator from "./SentimentIndicator";
 
 const TABS = [
   { id: "positions", label: "Open Positions", icon: LayoutList, live: false },
   { id: "feed",      label: "Market Feed",    icon: Radio,      live: true  },
   { id: "ai",        label: "AI Command",     icon: Cpu,        live: true  },
   { id: "history",   label: "Trade History",  icon: Clock,      live: false },
+  { id: "sentiment", label: "Sentiment",      icon: BarChart2,  live: true  },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -22,10 +24,10 @@ export default function BottomDrawer() {
   return (
     <div
       className="shrink-0 border-t border-panel bg-panel flex flex-col transition-all duration-200"
-      style={{ height: collapsed ? "36px" : "220px" }}
+      style={{ height: collapsed ? "36px" : "240px" }}
     >
       {/* Tab bar */}
-      <div className="flex items-center h-9 border-b border-panel shrink-0 overflow-hidden">
+      <div className="flex items-center h-9 border-b border-panel shrink-0">
         <div className="flex items-center flex-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -49,7 +51,6 @@ export default function BottomDrawer() {
           })}
         </div>
 
-        {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center gap-1.5 px-3 h-full text-dim hover:text-foreground transition-colors border-l border-panel text-[9px]"
@@ -66,6 +67,7 @@ export default function BottomDrawer() {
           {active === "feed"      && <MarketFeed />}
           {active === "ai"        && <AICommandInput />}
           {active === "history"   && <TradeHistory />}
+          {active === "sentiment" && <SentimentIndicator />}
         </div>
       )}
     </div>
