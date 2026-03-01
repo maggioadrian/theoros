@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — never commit secrets, but do commit the example template
+.env
+.env.local
+.env.*.local
+backend/.env
+!**/.env.example
 
 # vercel
 .vercel
