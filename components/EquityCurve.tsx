@@ -9,78 +9,128 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw, AlertCircle } from "lucide-react";
+import { getEquityHistory } from "@/lib/api";
+import type { EquityPoint } from "@/lib/api";
 
-// Generate synthetic equity curve
-function genCurve() {
-  const data = [];
-  let val = 250000;
-  const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  for (let i = 0; i < 120; i++) {
-    const drift = 0.0008;
-    const vol = 0.012;
-    val *= 1 + drift + (Math.random() - 0.48) * vol;
-    data.push({
-      t: i,
-      label: i % 10 === 0 ? labels[Math.floor(i / 10)] : "",
-      equity: Math.round(val * 100) / 100,
-      benchmark: Math.round((250000 * Math.pow(1.00035, i)) * 100) / 100,
-    });
-  }
-  return data;
+type ChartPoint = {
+  label: string;
+  equity: number;
+  benchmark?: number;
+};
+
+function buildChartData(raw: EquityPoint[]): ChartPoint[] {
+  let lastMonth = "";
+  return raw.map((d) => {
+    const month = new Date(d.date + "T12:00:00Z").toLocaleString("en-US", { month: "short" });
+    const label = month !== lastMonth ? month : "";
+    lastMonth = month;
+    return { label, equity: d.equity, benchmark: d.benchmark };
+  });
 }
 
-const DATA = genCurve();
-const START = DATA[0].equity;
-const END = DATA[DATA.length - 1].equity;
-const TOTAL_RETURN = (((END - START) / START) * 100).toFixed(2);
-
-const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { value: number }[] }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { value: number; dataKey: string }[];
+  label?: string;
+}) => {
   if (!active || !payload?.length) return null;
+  const equity    = payload.find((p) => p.dataKey === "equity");
+  const benchmark = payload.find((p) => p.dataKey === "benchmark");
   return (
     <div className="bg-panel border border-panel rounded px-2 py-1.5 text-[10px]">
-      <div className="text-electric num font-bold">${payload[0]?.value.toLocaleString()}</div>
-      {payload[1] && (
-        <div className="text-dim num">BM: ${payload[1].value.toLocaleString()}</div>
+      {label && <div className="text-dim mb-1">{label}</div>}
+      {equity && (
+        <div className="text-electric num font-bold">
+          ${equity.value.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+        </div>
+      )}
+      {benchmark && (
+        <div className="text-dim num">
+          SPY: ${benchmark.value.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+        </div>
       )}
     </div>
   );
 };
 
 export default function EquityCurve() {
+  const [data, setData]       = useState<ChartPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
-  if (!mounted) return (
-    <div className="flex flex-col h-full">
-      <div className="panel-header">
-        <span className="panel-label">Equity Curve</span>
+  useEffect(() => {
+    setMounted(true);
+    getEquityHistory(252)
+      .then((raw) => setData(buildChartData(raw)))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load equity history"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const start   = data[0]?.equity ?? 0;
+  const current = data[data.length - 1]?.equity ?? 0;
+  const ret     = start > 0 ? ((current - start) / start) * 100 : 0;
+  const retUp   = ret >= 0;
+
+  if (!mounted || loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="panel-header">
+          <span className="panel-label">Equity Curve</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-dim text-[10px] flex items-center gap-2">
+            <RefreshCw size={10} className="animate-spin text-electric" />
+            Loading chart…
+          </div>
+        </div>
       </div>
-      <div className="flex-1 flex items-center justify-center text-dim text-[10px]">Loading chart...</div>
-    </div>
-  );
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="panel-header"><span className="panel-label">Equity Curve</span></div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2">
+          <AlertCircle size={16} className="text-loss" />
+          <div className="text-loss text-[10px] text-center px-4">{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
       <div className="panel-header">
         <span className="panel-label">Equity Curve</span>
         <div className="flex items-center gap-2">
-          <TrendingUp size={10} className="text-profit" />
-          <span className="text-[10px] text-profit font-bold num">+{TOTAL_RETURN}%</span>
-          <span className="text-[9px] text-dim">YTD</span>
+          {retUp
+            ? <TrendingUp size={10} className="text-profit" />
+            : <TrendingDown size={10} className="text-loss" />
+          }
+          <span className={`text-[10px] font-bold num ${retUp ? "text-profit" : "text-loss"}`}>
+            {retUp ? "+" : ""}{ret.toFixed(2)}%
+          </span>
+          <span className="text-[9px] text-dim">1Y</span>
         </div>
       </div>
 
       {/* Mini stats */}
       <div className="grid grid-cols-3 gap-px border-b border-panel">
         {[
-          { k: "START",   v: `$${(START / 1000).toFixed(1)}k` },
-          { k: "CURRENT", v: `$${(END / 1000).toFixed(1)}k`   },
-          { k: "RETURN",  v: `+${TOTAL_RETURN}%`              },
+          { k: "START",   v: `$${(start   / 1000).toFixed(0)}k`, up: true    },
+          { k: "CURRENT", v: `$${(current / 1000).toFixed(0)}k`, up: true    },
+          { k: "RETURN",  v: `${retUp ? "+" : ""}${ret.toFixed(2)}%`, up: retUp },
         ].map((s) => (
           <div key={s.k} className="py-2.5 px-4 text-center">
             <div className="text-[8px] text-dim tracking-widest mb-1">{s.k}</div>
-            <div className={`text-base font-bold num ${s.k === "RETURN" ? "text-profit" : "text-electric"}`}>
+            <div className={`text-base font-bold num ${s.k === "RETURN" ? (s.up ? "text-profit" : "text-loss") : "text-electric"}`}>
               {s.v}
             </div>
           </div>
@@ -89,15 +139,15 @@ export default function EquityCurve() {
 
       <div className="flex-1 px-2 py-2">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={DATA} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
+                <stop offset="5%"  stopColor="#00d4ff" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}    />
               </linearGradient>
               <linearGradient id="bmGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#475569" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#475569" stopOpacity={0} />
+                <stop offset="5%"  stopColor="#475569" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#475569" stopOpacity={0}    />
               </linearGradient>
             </defs>
             <XAxis
@@ -111,10 +161,11 @@ export default function EquityCurve() {
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-              width={40}
+              width={44}
+              domain={["auto", "auto"]}
             />
             <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine y={START} stroke="#475569" strokeDasharray="3 3" strokeWidth={0.5} />
+            <ReferenceLine y={start} stroke="#475569" strokeDasharray="3 3" strokeWidth={0.5} />
             <Area
               type="monotone"
               dataKey="benchmark"
@@ -122,6 +173,7 @@ export default function EquityCurve() {
               strokeWidth={1}
               fill="url(#bmGrad)"
               dot={false}
+              connectNulls
             />
             <Area
               type="monotone"
@@ -130,6 +182,7 @@ export default function EquityCurve() {
               strokeWidth={1.5}
               fill="url(#eqGrad)"
               dot={false}
+              connectNulls
             />
           </AreaChart>
         </ResponsiveContainer>

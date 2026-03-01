@@ -12,7 +12,9 @@ Data routes (all read-only):
   GET  /questrade/balances?account_id=...
   GET  /questrade/orders?account_id=...&state=All
 """
+import asyncio
 import os
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
 from dotenv import load_dotenv
@@ -20,6 +22,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import httpx
+
+# SPY (STATE STREET SPDR S&P 500 ETF, USD, ARCA) — stable Questrade symbolId
+SPY_SYMBOL_ID = 34987
 
 load_dotenv()
 
@@ -174,6 +179,92 @@ async def orders(
     """Order history for the given account."""
     try:
         return await qt.get_orders(account_id, state=state)
+    except RuntimeError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@app.get("/questrade/equity-history", tags=["questrade"])
+async def equity_history(days: int = Query(252, description="Number of trading days of history (252 ≈ 1 year)")):
+    """
+    Reconstruct daily portfolio equity from current position quantities × historical close prices.
+    SPY is included as a normalized benchmark starting at the same value as the portfolio.
+    """
+    try:
+        accounts = await qt.get_accounts()
+
+        # Parallel: fetch positions + balances for every account simultaneously
+        results = await asyncio.gather(*[
+            asyncio.gather(
+                qt.get_positions(a["number"]),
+                qt.get_balances(a["number"]),
+            )
+            for a in accounts
+        ])
+
+        # Aggregate positions and current cash across all accounts
+        position_map: dict[int, dict] = {}  # symbolId -> {qty, symbol}
+        total_cash_usd = 0.0
+
+        for positions, balances in results:
+            usd = next((b for b in balances["combinedBalances"] if b["currency"] == "USD"), None)
+            if usd:
+                total_cash_usd += usd["cash"]
+            for p in positions:
+                sid = p["symbolId"]
+                if sid not in position_map:
+                    position_map[sid] = {"qty": 0, "symbol": p["symbol"]}
+                position_map[sid]["qty"] += p["openQuantity"]
+
+        if not position_map:
+            return []
+
+        # Date range — extra calendar-day buffer to cover weekends/holidays
+        end_dt = datetime.now(timezone.utc)
+        start_dt = end_dt - timedelta(days=int(days * 1.5) + 30)
+        start_str = start_dt.strftime("%Y-%m-%dT%H:%M:%S-00:00")
+        end_str   = end_dt.strftime("%Y-%m-%dT%H:%M:%S-00:00")
+
+        # Parallel: fetch candles for all position symbols + SPY benchmark
+        symbol_ids = list(position_map.keys())
+        candle_results, spy_candles = await asyncio.gather(
+            asyncio.gather(*[qt.get_candles(sid, start_str, end_str) for sid in symbol_ids]),
+            qt.get_candles(SPY_SYMBOL_ID, start_str, end_str),
+        )
+
+        # Build price lookups
+        price_map: dict[int, dict[str, float]] = {}
+        all_dates: set[str] = set()
+        for sid, candles in zip(symbol_ids, candle_results):
+            price_map[sid] = {c["date"]: c["close"] for c in candles}
+            all_dates.update(price_map[sid].keys())
+
+        spy_by_date: dict[str, float] = {c["date"]: c["close"] for c in spy_candles}
+
+        # Build equity series — limit to requested number of trading days
+        result = []
+        for date in sorted(all_dates)[-days:]:
+            equity = total_cash_usd
+            for sid, info in position_map.items():
+                price = price_map.get(sid, {}).get(date)
+                if price is not None:
+                    equity += info["qty"] * price
+            entry: dict = {"date": date, "equity": round(equity, 2)}
+            if date in spy_by_date:
+                entry["_spy"] = spy_by_date[date]
+            result.append(entry)
+
+        # Normalize SPY so it starts at the same value as the portfolio on day 1
+        first_with_spy = next((r for r in result if "_spy" in r), None)
+        if first_with_spy and result:
+            spy_start   = first_with_spy["_spy"]
+            first_equity = result[0]["equity"]
+            for r in result:
+                if "_spy" in r:
+                    r["benchmark"] = round(first_equity * (r["_spy"] / spy_start), 2)
+                    del r["_spy"]
+
+        return result
+
     except RuntimeError as e:
         raise HTTPException(status_code=401, detail=str(e))
 

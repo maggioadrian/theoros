@@ -42,6 +42,13 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json();
 }
 
-export const getAccounts = () => apiFetch<Account[]>("/questrade/accounts");
-export const getBalances = (id: string) => apiFetch<Balances>(`/questrade/balances?account_id=${id}`);
-export const getPositions = (id: string) => apiFetch<Position[]>(`/questrade/positions?account_id=${id}`);
+export type EquityPoint = {
+  date: string;
+  equity: number;
+  benchmark?: number;
+};
+
+export const getAccounts     = ()           => apiFetch<Account[]>("/questrade/accounts");
+export const getBalances     = (id: string) => apiFetch<Balances>(`/questrade/balances?account_id=${id}`);
+export const getPositions    = (id: string) => apiFetch<Position[]>(`/questrade/positions?account_id=${id}`);
+export const getEquityHistory = (days = 252) => apiFetch<EquityPoint[]>(`/questrade/equity-history?days=${days}`);

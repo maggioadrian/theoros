@@ -127,6 +127,20 @@ async def get_balances(account_id: str) -> dict:
     }
 
 
+async def get_candles(symbol_id: int, start: str, end: str, interval: str = "OneDay") -> list[dict]:
+    """Fetch OHLCV candles for a given symbolId."""
+    data = await _get(f"markets/candles/{symbol_id}", params={
+        "startTime": start,
+        "endTime": end,
+        "interval": interval,
+    })
+    return [
+        {"date": c["start"][:10], "close": c["close"]}
+        for c in data.get("candles", [])
+        if c.get("close") is not None
+    ]
+
+
 async def get_orders(account_id: str, state: str = "All") -> list[dict]:
     data = await _get(
         f"accounts/{account_id}/orders",
